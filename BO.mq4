@@ -219,101 +219,21 @@ void OnTick() {
       }
   }
   
-  // BE
-  /*for(int icnt=0; icnt<OrdersTotal(); icnt++) {
-      if (OrderSelect(icnt, SELECT_BY_POS, MODE_TRADES) && equalsChartCurrency() && (isBuyOpen() || isSellOpen())) {
-         double orderOpenPrice = OrderOpenPrice();
-         double orderLots = OrderLots();
-         int orderTicket = OrderTicket();
-         if (isBuyOpen()) {            
-            // hedging
-            if (Bid <= addPips(orderOpenPrice, -RISK) && !hasCounterOrder(orderTicket)) {
-               lots = 2*orderLots;
-               sellTP = addPips(orderOpenPrice, -RISK-TP);
-               Print("Enter sell order for ticket " + orderTicket);
-               int counterOrder = OrderSend(Symbol(), OP_SELLSTOP, NormalizeDouble(lots, 2), addPips(Bid, -2), 0, 0, addPips(Bid, -15), 0, orderTicket, 0, clrNONE);
-               if (counterOrder == -1) {
-                  Print("Close buy ticket " + orderTicket);
-                  OrderClose(orderTicket, NormalizeDouble(orderLots, 2), Bid, 0, clrNONE);
-               }
-            }
-            
-            
-         } else if (isSellOpen()) {
-            // hedging
-            if (Ask >= addPips(orderOpenPrice, RISK) && !hasCounterOrder(orderTicket)) {
-               lots = 2*orderLots;
-               buyTP = addPips(orderOpenPrice, RISK+TP);
-               Print("Enter buy order for ticket " + orderTicket);
-               counterOrder = OrderSend(Symbol(), OP_BUYSTOP, NormalizeDouble(lots, 2), addPips(Ask, 2), 0, 0, addPips(Bid, 15), 0, orderTicket, 0, clrNONE);
-               if (counterOrder == -1) {
-                  Print("Close sell ticket " + orderTicket);
-                  OrderClose(orderTicket, NormalizeDouble(orderLots, 2), Ask, 0, clrNONE);
-               }
-            }
-         }
-      }
-  }*/
-  
   // Manage orders
   for(int icnt=0; icnt<OrdersTotal(); icnt++) {
       if (OrderSelect(icnt, SELECT_BY_POS, MODE_TRADES) && equalsChartCurrency()) {
          if (isBuyOpen()) {
-            /*if (isBuyInProfit(1) && !isClosedHalf()) { // close half the lots
-               Print("Closing half lots for buy ticket " + OrderTicket());
-               OrderClose(OrderTicket(), NormalizeDouble(OrderLots()/2,2), Bid, 100, 0);
-               addClosedHalf();
-            } else */if (isBuyInProfitBy(BE) && !isBreakEven()) { // move SL to break even
+            if (isBuyInProfitBy(BE) && !isBreakEven()) { // move SL to break even
                Print("Moving SL to break even for buy ticket " + OrderTicket());
                OrderModify(OrderTicket(), OrderOpenPrice(), OrderOpenPrice(), OrderTakeProfit(), 0, clrNONE);
             }
          } else if (isSellOpen()) {
-            /*if (isSellInProfit(1) && !isClosedHalf()) { // close half the lots
-               Print("Closing half lots for sell ticket " + OrderTicket());
-               OrderClose(OrderTicket(), NormalizeDouble(OrderLots()/2,2), Ask, 100, 0);
-               addClosedHalf();
-            } else */if (isSellInProfitBy(BE) && !isBreakEven()) { // move SL to break even
+            if (isSellInProfitBy(BE) && !isBreakEven()) { // move SL to break even
                Print("Moving SL to break even for sell ticket " + OrderTicket());
                OrderModify(OrderTicket(), OrderOpenPrice(), OrderOpenPrice(), OrderTakeProfit(), 0, clrNONE);
             }
          }
       }
   }
-  
-  // Monitor TP
-  /*if (prevOrdersHistoryTotal != OrdersHistoryTotal()) {
-      for (int c=prevOrdersHistoryTotal; c<OrdersHistoryTotal(); c++) {
-         int historyTicket = OrderSelect(c, SELECT_BY_POS, MODE_HISTORY);
-         if (historyTicket && equalsChartCurrency() && isTakeProfitTicket()) {
-            Print("Found TP in history for ticket " + OrderTicket());
-            int historyTicketMagicNumber = OrderMagicNumber();
-            Print("History Ticket Magic Number: " + historyTicketMagicNumber);
-            for(int counter=0; counter<OrdersTotal(); counter++) {
-               if (OrderSelect(counter, SELECT_BY_POS, MODE_TRADES)) {
-                  int presentTicket = OrderTicket();
-                  Print("Present Ticket: " + presentTicket);
-                  double presentTicketLots = OrderLots();
-                  Print("Present Ticket Lots: " + presentTicketLots);
-                  if (presentTicket == historyTicketMagicNumber) {
-                     // tp > magic number > ticket number
-                     Print("Closing present ticket " + presentTicket);
-                     OrderClose(presentTicket, presentTicketLots, isBuyOpen() ? Bid : Ask, 100, clrNONE);
-                     
-                     // closed > magic number > ticket number
-                     OrderSelect(presentTicket, SELECT_BY_TICKET, MODE_HISTORY);
-                     int mn = OrderMagicNumber();
-                     OrderSelect(mn, SELECT_BY_TICKET, MODE_TRADES);
-                     OrderClose(OrderTicket(), OrderLots(), isBuyOpen() ? Bid : Ask, 100, clrNONE);
-                     
-                     // tp > ticket number > magic number
-                     closeTicketWithMagicNumber(historyTicket);
-                     
-                  }
-               }
-            }
-         }
-      }
-      prevOrdersHistoryTotal = OrdersHistoryTotal();
-  }*/
  
 }
