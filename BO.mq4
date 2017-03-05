@@ -15,6 +15,8 @@ double highs[200];
 int lowCounter = 0;
 int highCounter = 0;
 int prevOrdersHistoryTotal = 0;
+bool blocked = false;
+
 
 double addPips(double price, int pips) {
    return price + pips * Point * getBrokerFactor();
@@ -177,16 +179,16 @@ void closeTicketWithMagicNumber(double magicNumber) {
    }
 }
 
-bool isBuyInProfitBy(int pips) {
-   return Bid>=addPips(OrderOpenPrice(), pips);
+bool isBuyInProfitBy(double orderOpenPrice, int pips) {
+   return Bid>=addPips(orderOpenPrice, pips);
 }
 
-bool isBreakEven() {
-   return OrderStopLoss() == OrderOpenPrice();
+bool isBreakEven(double orderStopLoss, double orderOpenPrice) {
+   return orderStopLoss == orderOpenPrice;
 }
 
-bool isSellInProfitBy(int pips) {
-   return Ask<=addPips(OrderOpenPrice(), -pips);
+bool isSellInProfitBy(double orderOpenPrice, int pips) {
+   return Ask<=addPips(orderOpenPrice, -pips);
 }
 
 void OnInit() {
@@ -222,18 +224,51 @@ void OnTick() {
   // Manage orders
   for(int icnt=0; icnt<OrdersTotal(); icnt++) {
       if (OrderSelect(icnt, SELECT_BY_POS, MODE_TRADES) && equalsChartCurrency()) {
+         int orderTicket = OrderTicket();
+         double orderLots = OrderLots();
+         double orderStopLoss = OrderStopLoss();
+         double orderOpenPrice = OrderOpenPrice();
+         double orderTakeProfit = OrderTakeProfit();
+         int orderMagicNumber = OrderMagicNumber();
          if (isBuyOpen()) {
-            if (isBuyInProfitBy(BE) && !isBreakEven()) { // move SL to break even
-               Print("Moving SL to break even for buy ticket " + OrderTicket());
-               OrderModify(OrderTicket(), OrderOpenPrice(), OrderOpenPrice(), OrderTakeProfit(), 0, clrNONE);
+            if (orderMagicNumber == 0 && !hasCounterOrder(orderTicket)) {
+               // counter position
+               OrderSend(Symbol(), OP_SELLSTOP, orderLots, addPips(orderOpenPrice, -SL), 0, orderOpenPrice, addPips(orderOpenPrice, -2*SL), 0, orderTicket, 0, clrNONE);
+            } else if (isBuyInProfitBy(orderOpenPrice, BE) && !isBreakEven(orderStopLoss, orderOpenPrice)) { // move SL to break even
+               Print("Moving SL to break even for buy ticket " + orderTicket);
+               OrderModify(orderTicket, orderOpenPrice, orderOpenPrice, orderTakeProfit, 0, clrNONE);
             }
          } else if (isSellOpen()) {
-            if (isSellInProfitBy(BE) && !isBreakEven()) { // move SL to break even
-               Print("Moving SL to break even for sell ticket " + OrderTicket());
-               OrderModify(OrderTicket(), OrderOpenPrice(), OrderOpenPrice(), OrderTakeProfit(), 0, clrNONE);
+            if (orderMagicNumber == 0 && !hasCounterOrder(orderTicket)) {
+               // counter position
+               OrderSend(Symbol(), OP_BUYSTOP, orderLots, addPips(orderOpenPrice, SL), 0, orderOpenPrice, addPips(orderOpenPrice, 2*SL), 0, orderTicket, 0, clrNONE);
+            } else if (isSellInProfitBy(orderOpenPrice, BE) && !isBreakEven(orderStopLoss, orderOpenPrice)) { // move SL to break even
+               Print("Moving SL to break even for sell ticket " + orderTicket);
+               OrderModify(orderTicket, orderOpenPrice, orderOpenPrice, orderTakeProfit, 0, clrNONE);
             }
          }
       }
+  }
+  
+  // Monitor TP and BE
+  int ordersHistoryTotal = OrdersHistoryTotal();
+  if (prevOrdersHistoryTotal != ordersHistoryTotal) {
+      //blocked = true;
+      for(int cnt=ordersHistoryTotal-1; cnt>=prevOrdersHistoryTotal; cnt--) {
+         if (OrderSelect(cnt, SELECT_BY_POS, MODE_HISTORY)) {
+            int historyTicket = OrderTicket();
+            int ordersTotal = OrdersTotal();
+            for(int j=ordersTotal-1; j>=0; j--) {
+               if (OrderSelect(j, SELECT_BY_POS, MODE_TRADES)) {
+                  if (OrderMagicNumber() == historyTicket) {
+                     OrderDelete(OrderTicket(), clrNONE);
+                  }
+               }
+            }
+         }
+      }
+      prevOrdersHistoryTotal = OrdersHistoryTotal();
+      //blocked = false;
   }
  
 }
